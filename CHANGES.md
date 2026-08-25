@@ -32,19 +32,6 @@ when the selected MSX sound cartridge provides suitable sample memory.
   * Added concise loading progress for direct PCM transfers.  A contiguous
     PCM image is displayed as one destination line with incremental progress
     marks rather than a line per VGM data block.
-  * Added a reusable openMSX/MSX-DOS 2 test kit under `tools/msx-test` for
-    deployment, scripted boot, screenshots and runtime checks.
-  * Validated on the Panasonic FS-A1GT MFSCCSD test machine with its native
-    1.5MB mapper configuration (1MB + 512KB; no `ram4mb`):
-    - 85 MSX-AUDIO/Y8950 tracks: 85/85 reached the actual VGMPlay playback
-      entry point; a representative Y8950 capture contains non-silent audio.
-    - Random PCM suite: OPL4 ROM 15/15, OPL4 RAM 5/5, Neotron YM2610 15/15,
-      and Makoto YM2608 15/15 reached playback with their respective sound
-      extensions connected.
-  * Added GitHub Actions build and release automation.  A `v*` tag builds
-    `vgmplay.com` and `vgmplay.zip`, creates a GitHub Release and attaches both
-    artifacts.
-
 [1.4] — 2023-05-18
 ------------------
 
