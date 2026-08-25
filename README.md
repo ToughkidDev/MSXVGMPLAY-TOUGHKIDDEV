@@ -57,68 +57,6 @@ after each inflation step.  The command buffer therefore remains usable while
 the file is decompressed a chunk at a time.  The temporary segments are owned
 by the process and are released by MSX-DOS at program termination.
 
-Testing and openMSX setup
--------------------------
-
-`tools/msx-test` is a reusable MSX-DOS 2/openMSX test kit.  It builds and
-deploys the current COM file to the configured disk image, boots the selected
-machine, enters a command automatically and stores screenshots/traces outside
-version control.  Copy `config.example.sh` to `config.local.sh` and set the
-machine, disk image and command for a local setup.
-
-The enhanced streaming path was tested on a Panasonic FS-A1GT MFSCCSD setup
-with its native 1.5MB mapper arrangement: 1MB in slot `3-0` and 512KB in slot
-`2-2`, with 1,360KB free according to the MSX-DOS memory test.  No `ram4mb`
-extension was used for the following results:
-
-| Suite | Sound setup | Result |
-| --- | --- | --- |
-| MSX-AUDIO/Y8950, 85 VGZ tracks | Generic MSX-AUDIO | 85/85 playback entries |
-| Random OPL4 ROM | slot expander + DalSoRi R2 | 15/15 playback entries |
-| Random OPL4 RAM | slot expander + DalSoRi R2 | 5/5 playback entries |
-| Random YM2610 | slot expander + Neotron | 15/15 playback entries |
-| Random YM2608 | Makoto | 15/15 playback entries |
-
-For the automated suites, a pass is accepted only after the CPU reaches the
-actual `Application_Play` instruction signature of the compiled VGMPlay COM;
-this avoids false positives from an MSX-DOS mapper segment that happens to use
-the same numeric address.  A representative MSX-AUDIO run also produced a
-non-silent ten-second WAV capture.  These checks establish load, PCM transfer,
-device connection and playback entry; they are not a substitute for listening
-comparison against a reference recording.
-
-On the validated turboR configuration, the OPL4/DalSoRi R2 and Neotron
-extensions require `slotexpander` simply because the machine's cartridge slots
-are already occupied.  It does not add mapper RAM.  Typical test invocations
-are:
-
-```sh
-# Native 1.5MB mapper, YM2608
-openmsx -machine Panasonic_FS-A1GT-MFSCCSDv5SFG05 -ext MAKOTO
-
-# Native 1.5MB mapper, YM2610 or OPL4
-openmsx -machine Panasonic_FS-A1GT-MFSCCSDv5SFG05 \
-  -ext slotexpander -ext NEOTRON
-openmsx -machine Panasonic_FS-A1GT-MFSCCSDv5SFG05 \
-  -ext slotexpander -ext Jun_Soft_DalSoRi_R2
-
-# Native 1.5MB mapper, MSX-AUDIO
-openmsx -machine Panasonic_FS-A1GT-MFSCCSDv5SFG05 -ext audio
-```
-
-GitHub builds and releases
---------------------------
-
-Push a version tag beginning with `v` (for example `v1.5.0`) to create a
-GitHub Release automatically.  The workflow builds `bin/vgmplay.com` and
-`bin/vgmplay.zip`, attaches both files to that release, and generates release
-notes from the commits.  Normal pushes and pull requests build the same files
-and retain them as workflow artifacts.  The first enhanced release is
-[`v1.4.tk1`](https://github.com/ToughkidDev/MSXVGMPLAY-TOUGHKIDDEV/releases/tag/v1.4.tk1).
-
-Large VGM/VGZ music collections and openMSX captures are intentionally not
-kept in this source repository.
-
 Copyright 2015 Laurens Holst
 
 Thanks go to l_oliveira, popolon(fr), Pencioner, Supersoniqs and JunSoft for
