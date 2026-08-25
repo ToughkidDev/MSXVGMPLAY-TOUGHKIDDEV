@@ -1,0 +1,16 @@
+# Build products and local emulator state
+bin/
+gen/
+.DS_Store
+
+# Large, externally sourced music collections are not part of this source repo.
+VGMs/
+
+# Machine-specific openMSX test configuration and generated captures.
+tools/msx-test/config.local.sh
+tools/msx-test/artifacts/
+
+# This project originated as Mercurial repositories; vendor the source but not
+# their repository metadata when publishing the GitHub mirror.
+.hg/
+**/.hg/

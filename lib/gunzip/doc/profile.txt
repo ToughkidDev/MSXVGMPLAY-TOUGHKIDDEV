@@ -1,0 +1,42 @@
+Profiling results for gunzip /f aleste21.gz on Z80 (rev. 23452092c740):
+
+Total: 51.10
+- Unit tests: 0.32
+- Inflate_InflateDynamicCompressed: 50.64
+  - DynamicAlphabets_Construct: 4.13 (count: 15)
+    - DynamicAlphabets_ReadLengths: 0.01
+    - DynamicAlphabets_ReadHeaderCodeLengths: 0.05
+    - DynamicAlphabets_ConstructHeaderCodeAlphabet: 0.19
+    - DynamicAlphabets_ReadLiteralLengthDistanceCodeLengths: 0.35
+    - DynamicAlphabets_DestructHeaderCodeAlphabet: 0.01
+    - DynamicAlphabets_ConstructLiteralLengthAlphabet: 3.20
+    - DynamicAlphabets_ConstructDistanceAlphabet: 0.34
+  - Inflate_InflateCompressed: 46.41
+    - Inflate_DecodeLiteralLength: 21.47 (count: 204855)
+    - Inflate_WriteLiteral: 3.19 (count: 143369)
+    - Inflate_CopyLength: 22.04 (count: 61471)
+      - Inflate_DecodeDistanceInline: 4.35
+      - Inflate_CopyDistance: 17.09
+        - Writer_Copy_IY: 8.95
+          - Writer_Copy_Slow_IY: 0.20 (count: 1119)
+            - Writer_WriteBlock_IY: 0.15 (count: 1140)
+
+... FileReader_ReadFromFile: 2.04 (count: 60)
+
+Additional results (rev. de14d94e69a6):
+
+... Alphabet_Construct: 3.96 (count: 47)
+    - Alphabet_CountCodeLengths: 0.27
+    - Alphabet_CalculateNextCodes: 0.04
+    - Alphabet_AllocateTreeBuffer: 0.03
+    - Alphabet_BuildTree: 3.61
+      - Alphabet_AddTreeNode: 3.40 (count: 4467)
+        - Alphabet_Build: 2.82
+          - Alphabet_Build_FollowPhase: 2.05 (count: 4420)
+          - Alphabet_Build_GeneratePhase: 0.63 (count: 2155)
+          ... Alphabet_AddBranch: 0.62
+          ... Alphabet_AddLeaf: 0.16
+    - Alphabet_TrapEmptyTree: 0.00
+
+Without the checksum validation Writer_FinishBlock takes 0.05s (27 calls),
+enabled it takes 32.39s.

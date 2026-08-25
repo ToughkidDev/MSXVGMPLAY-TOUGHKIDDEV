@@ -1,0 +1,10 @@
+^gen/
+^bin/
+^bin2/
+^.vscode/
+
+^.project$
+^.externalToolBuilders/
+glob:.DS_Store
+glob:tools/msx-test/config.local.sh
+glob:tools/msx-test/artifacts/
