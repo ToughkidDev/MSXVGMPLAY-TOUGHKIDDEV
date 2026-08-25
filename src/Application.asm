@@ -642,7 +642,7 @@ Application_instance: Application
 	ENDS
 
 Application_welcome:
-	db "VGMPlay v1.4.tk1 by Grauw/TK",13,10,10,0
+	db "VGMPlay v1.4.tk2 by Grauw/TK",13,10,10,0
 
 Application_loadingFile:
 	db "Loading ",0
