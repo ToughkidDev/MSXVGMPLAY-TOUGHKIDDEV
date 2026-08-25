@@ -4,6 +4,47 @@ VGMPlay MSX change log
 For the complete list of changes please refer to the
 [revision history](https://hg.sr.ht/~grauw/vgmplay-msx/log).
 
+[1.4.tk1] — 2026-08-25
+-----------------------
+
+ToughkidDEV enhanced fork release.  This release changes how large VGM/VGZ
+files are loaded: sample/PCM payloads are no longer retained in MSX mapper RAM
+when the selected MSX sound cartridge provides suitable sample memory.
+
+  * Added a single-pass streaming loader for both plain `.vgm` and compressed
+    `.vgz` input.  Register writes, wait commands and the end marker are
+    compacted into a mapper-backed command stream; playback therefore never
+    reads from disk.
+  * Added forward-only VGZ inflation.  The inflater borrows two mapper pages
+    for its 32KB sliding window only while inflating, relays a small decoded
+    chunk to the stream loader, then restores the command-buffer mapping.
+    The entire inflated VGM is never materialised in MSX RAM.
+  * Added direct streaming of these VGM data-block types to cartridge memory:
+    YM2608 ADPCM (`0x81`), YM2610 PCM-A (`0x82`), YM2610 PCM-B (`0x83`),
+    OPL4 ROM (`0x84`), OPL4 RAM (`0x87`) and Y8950 ADPCM (`0x88`).
+  * Added/updated cartridge-memory transfer paths for Makoto/YM2608,
+    Neotron/YM2610, DalSoRi R2/OPL4 and MSX-AUDIO/Y8950.
+  * Preserved VGM loop semantics while compacting the stream: loop positions
+    are translated from original-file offsets to command-buffer offsets.
+  * Restored post-load track hardware information for streaming input,
+    including the VGM chip clocks and the selected MSX driver.  GD3 metadata
+    remains printed while the stream is positioned at the tag.
+  * Added concise loading progress for direct PCM transfers.  A contiguous
+    PCM image is displayed as one destination line with incremental progress
+    marks rather than a line per VGM data block.
+  * Added a reusable openMSX/MSX-DOS 2 test kit under `tools/msx-test` for
+    deployment, scripted boot, screenshots and runtime checks.
+  * Validated on the Panasonic FS-A1GT MFSCCSD test machine with its native
+    1.5MB mapper configuration (1MB + 512KB; no `ram4mb`):
+    - 85 MSX-AUDIO/Y8950 tracks: 85/85 reached the actual VGMPlay playback
+      entry point; a representative Y8950 capture contains non-silent audio.
+    - Random PCM suite: OPL4 ROM 15/15, OPL4 RAM 5/5, Neotron YM2610 15/15,
+      and Makoto YM2608 15/15 reached playback with their respective sound
+      extensions connected.
+  * Added GitHub Actions build and release automation.  A `v*` tag builds
+    `vgmplay.com` and `vgmplay.zip`, creates a GitHub Release and attaches both
+    artifacts.
+
 [1.4] — 2023-05-18
 ------------------
 
@@ -71,6 +112,7 @@ For the complete list of changes please refer to the
 Initial release.
 
 
+[1.4.tk1]: https://github.com/ToughkidDev/MSXVGMPLAY-TOUGHKIDDEV/releases/tag/v1.4.tk1
 [1.4]: https://hg.sr.ht/~grauw/vgmplay-msx/log?rev=release-1.4
 [1.3]: https://hg.sr.ht/~grauw/vgmplay-msx/log?rev=release-1.3
 [1.2]: https://hg.sr.ht/~grauw/vgmplay-msx/log?rev=release-1.2
