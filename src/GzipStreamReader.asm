@@ -27,7 +27,7 @@
 ; actually reads from, so none of that code needs to know borrowing is
 ; happening at all.
 ;
-GzipStreamReader_RELAY_SIZE: equ 100H  ; must stay a multiple of 100H - see
+GzipStreamReader_RELAY_SIZE: equ 400H  ; must stay a multiple of 100H - see
                                         ; Reader_SetBuffer_IY's alignment check
 GzipStreamReader_INFLATE_WINDOW: equ 4000H  ; the borrowed page1+page2 32K
                                              ; window - just an address,
@@ -62,8 +62,6 @@ GzipStreamReader: MACRO
 	chunkRemaining:
 		dw 0
 	relayFill:
-		dw 0
-	primeNeeded:
 		dw 0
 	finished:
 		db 0
@@ -222,24 +220,32 @@ GzipStreamReader_SavePages: PROC
 ; ix = this
 GzipStreamReader_BorrowPages: PROC
 	call GzipStreamReader_SavePages
+	; Changing segments in the same mapper does not require reselecting its
+	; slot. Keep the full slot switch when storage crosses mapper slots.
 	ld h,40H
 	ld a,(ix + GzipStreamReader.scratchPage1Slot)
+	cp (ix + GzipStreamReader.normalPage1Slot)
+	jr z,Page1Selected
 	push ix
 	push hl
 	call Memory_SetSlot
 	pop hl
 	pop ix
+Page1Selected:
 	ld a,(ix + GzipStreamReader.scratchPage1Segment)
 	push ix
 	call Mapper_instance.PutPH
 	pop ix
 	ld h,80H
 	ld a,(ix + GzipStreamReader.scratchPage2Slot)
+	cp (ix + GzipStreamReader.normalPage2Slot)
+	jr z,Page2Selected
 	push ix
 	push hl
 	call Memory_SetSlot
 	pop hl
 	pop ix
+Page2Selected:
 	ld a,(ix + GzipStreamReader.scratchPage2Segment)
 	push ix
 	call Mapper_instance.PutPH
@@ -251,11 +257,14 @@ GzipStreamReader_BorrowPages: PROC
 GzipStreamReader_RestorePages: PROC
 	ld h,40H
 	ld a,(ix + GzipStreamReader.normalPage1Slot)
+	cp (ix + GzipStreamReader.scratchPage1Slot)
+	jr z,Page1Selected
 	push ix
 	push hl
 	call Memory_SetSlot
 	pop hl
 	pop ix
+Page1Selected:
 	ld a,(ix + GzipStreamReader.normalPage1Segment)
 	push ix
 	call Mapper_instance.PutPH
@@ -263,11 +272,14 @@ GzipStreamReader_RestorePages: PROC
 
 	ld h,80H
 	ld a,(ix + GzipStreamReader.normalPage2Slot)
+	cp (ix + GzipStreamReader.scratchPage2Slot)
+	jr z,Page2Selected
 	push ix
 	push hl
 	call Memory_SetSlot
 	pop hl
 	pop ix
+Page2Selected:
 	ld a,(ix + GzipStreamReader.normalPage2Segment)
 	push ix
 	call Mapper_instance.PutPH
@@ -366,12 +378,15 @@ CopyOut:
 	ld b,h
 	ld c,l
 HaveCount:
+	; A relay may span several 256-byte pages. Include the high byte when
+	; appending a short inflate slice to bytes already collected.
+	ld l,(ix + GzipStreamReader.relayFill + 0)
+	ld h,(ix + GzipStreamReader.relayFill + 1)
+	ld de,GzipStreamReader_RELAY_BUFFER
+	add hl,de
+	ex de,hl
 	ld l,(ix + GzipStreamReader.chunkPos + 0)
 	ld h,(ix + GzipStreamReader.chunkPos + 1)
-	ld de,GzipStreamReader_RELAY_BUFFER
-	ld a,(ix + GzipStreamReader.relayFill + 0)
-	add a,e
-	ld e,a
 	push bc
 	call System_FastLDIR
 	pop bc
@@ -432,122 +447,18 @@ ReturnFullRelay:
 	ret
 	ENDP
 
-; Primes the outer reader with a ready-made, exactly 256-byte buffer that
-; starts precisely at the true VGM data offset, for the case where that
-; offset falls within the 256 bytes Header_Construct already consumed (a
-; gzip stream can only move forward, so those bytes can't be re-read live;
-; they are replayed from the still-resident header snapshot instead, and
-; the remainder of the 256-byte buffer is topped up with fresh, live
-; decompressed bytes so the result is a normal, aligned buffer as far as
-; the rest of the Reader machinery is concerned).
-; de = header struct address
-; hl = true VGM data offset (0-255; caller must ensure this - i.e. only
-;      call this when the offset falls within the first 256 bytes)
+; Header_Read copies the first 256 bytes into a separate header object.
+; The original bytes are still in the first relay: reposition within that
+; relay instead of copying/re-inflating them. This also retains any bytes
+; prefetched beyond the header when RELAY_SIZE is greater than 256.
+; hl = true VGM data offset (0-255)
 ; ix = this
-GzipStreamReader_PrimeAfterHeader: PROC
-	ld a,l
-	cpl
-	inc a
-	ld c,a
-	ld b,0
-	ld a,c
-	or a
-	jr nz,GotReplayLen
-	ld b,1  ; trueDataOffset was 0: replayLen = 256
-GotReplayLen:
-	; bc = replayLen (1-256)
-	push bc
-	add hl,de                  ; hl = header address + trueDataOffset (source)
+GzipStreamReader_PrimeAfterHeader:
 	ld de,GzipStreamReader_RELAY_BUFFER
-	call System_FastLDIR          ; copies bc(replayLen) header bytes
-	pop bc                            ; bc = replayLen (restored)
-
-	ld hl,100H
-	and a
-	sbc hl,bc
-	ld (ix + GzipStreamReader.primeNeeded + 0),l
-	ld (ix + GzipStreamReader.primeNeeded + 1),h
-	ld a,h
-	or l
-	jp z,Primed  ; needed=0 only when trueDataOffset was 0
-
-FillLoop:
-	ld a,(ix + GzipStreamReader.chunkRemaining + 0)
-	or (ix + GzipStreamReader.chunkRemaining + 1)
-	jr nz,HaveChunk
-	call GzipStreamReader_BorrowAndInflate
-	jr CheckAvailable
-HaveChunk:
-	call GzipStreamReader_BorrowPages
-CheckAvailable:
-	ld l,(ix + GzipStreamReader.chunkRemaining + 0)
-	ld h,(ix + GzipStreamReader.chunkRemaining + 1)
-	ld a,h
-	or l
-	jr nz,HaveChunkAvailable
-	call GzipStreamReader_RestorePages
-	jp GzipStreamReader_UnexpectedEndOfFile
-HaveChunkAvailable:
-	; take = min(chunkRemaining, primeNeeded)
-	ld c,(ix + GzipStreamReader.primeNeeded + 0)
-	ld b,(ix + GzipStreamReader.primeNeeded + 1)
-	and a
-	sbc hl,bc
-	jr nc,TakeIsNeeded
-	add hl,bc
-	ld b,h
-	ld c,l
-TakeIsNeeded:
-	; bc = take ; dest = RELAY_BUFFER + (256 - primeNeeded)
-	push bc
-	ld hl,GzipStreamReader_RELAY_BUFFER + 100H
-	ld e,(ix + GzipStreamReader.primeNeeded + 0)
-	ld d,(ix + GzipStreamReader.primeNeeded + 1)
-	and a
-	sbc hl,de
-	ex de,hl                     ; de = dest
-	ld l,(ix + GzipStreamReader.chunkPos + 0)
-	ld h,(ix + GzipStreamReader.chunkPos + 1)
-	pop bc
-	push bc
-	call System_FastLDIR
-	pop bc
-
-	ld l,(ix + GzipStreamReader.chunkPos + 0)
-	ld h,(ix + GzipStreamReader.chunkPos + 1)
-	add hl,bc
-	ld (ix + GzipStreamReader.chunkPos + 0),l
-	ld (ix + GzipStreamReader.chunkPos + 1),h
-	ld l,(ix + GzipStreamReader.chunkRemaining + 0)
-	ld h,(ix + GzipStreamReader.chunkRemaining + 1)
-	and a
-	sbc hl,bc
-	ld (ix + GzipStreamReader.chunkRemaining + 0),l
-	ld (ix + GzipStreamReader.chunkRemaining + 1),h
-	ld l,(ix + GzipStreamReader.primeNeeded + 0)
-	ld h,(ix + GzipStreamReader.primeNeeded + 1)
-	and a
-	sbc hl,bc
-	ld (ix + GzipStreamReader.primeNeeded + 0),l
-	ld (ix + GzipStreamReader.primeNeeded + 1),h
-
-	call GzipStreamReader_RestorePages
-
-	; Mapper restore helpers modify HL.  Reload the persisted remaining count
-	; before deciding whether another borrowed inflate slice is required.
-	ld l,(ix + GzipStreamReader.primeNeeded + 0)
-	ld h,(ix + GzipStreamReader.primeNeeded + 1)
-	ld a,h
-	or l
-	jr nz,FillLoop
-
-Primed:
-	push ix
-	pop iy
-	ld de,GzipStreamReader_RELAY_BUFFER
-	ld hl,100H
-	jp Reader_SetBuffer_IY
-	ENDP
+	add hl,de
+	ld (ix + Reader.address + 0),l
+	ld (ix + Reader.address + 1),h
+	ret
 
 GzipStreamReader_UnexpectedEndOfFile:
 	ld hl,GzipStreamReader_unexpectedEOFError
@@ -556,8 +467,8 @@ GzipStreamReader_UnexpectedEndOfFile:
 ; Reads a gzip VGM header, positions its forward-only reader at the true VGM
 ; data offset, then patches/finalises the header for the compact buffer.  A
 ; number of valid VGM 1.50+ files start at 80H, inside the 256 bytes already
-; consumed to parse the header; PrimeAfterHeader replays that untouched part
-; before Header_Finalize clears it.
+; consumed to parse the header; PrimeAfterHeader repositions within the
+; untouched relay before Header_Finalize clears the separate header copy.
 ; ix = StreamLoader
 StreamLoader_ReadGzipHeaderAndPosition: PROC
 	push ix

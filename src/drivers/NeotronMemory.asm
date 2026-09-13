@@ -149,14 +149,24 @@ Loop:
 	jr z,Finish
 	push de
 	push hl
+	; The final ROM fragment need not fill a 256-byte SIOS page. Read only
+	; bytes belonging to this block, never the following VGM commands.
+	ld bc,100H
+	ld a,d
+	or e
+	or h
+	jr nz,FullChunk
+	ld c,l
+	ld b,0
+FullChunk:
 	ld e,(ix + NeotronMemory.buffer)
 	ld d,(ix + NeotronMemory.buffer + 1)
 	push de
-	ld bc,100H
 	call Reader_ReadBlock_IY
 	call Progress_Update
 	pop hl
 	push bc
+	call NeotronMemory_PadWriteBuffer
 	ld bc,100H
 	call NeotronMemory_Write
 	call c,System_ThrowException
@@ -167,6 +177,30 @@ Loop:
 Finish: equ NeotronMemory_Reset
 ;	jp NeotronMemory_Reset
 	ENDP
+
+	SECTION TPA
+
+; SIOS writes full pages. Pad the unused tail locally; BC remains the actual
+; number of input bytes consumed and is saved by the caller for bookkeeping.
+; hl = transfer buffer, bc = 1..256
+NeotronMemory_PadWriteBuffer: PROC
+	ld a,c
+	or a
+	ret z
+	push hl
+	add hl,bc
+	neg
+	ld b,a
+	xor a
+Pad:
+	ld (hl),a
+	inc hl
+	djnz Pad
+	pop hl
+	ret
+	ENDP
+
+	ENDS
 
 ; b = block write size in 64KB
 ; de = write address[23:8]

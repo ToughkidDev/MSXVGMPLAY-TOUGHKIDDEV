@@ -17,9 +17,10 @@ Set these values in `config.local.sh`:
   `Panasonic_FS-A1GT-MFSCCSDv5SFG05`, which boots MSX-DOS 2 from SCC+ SD.
 - `MSX_TEST_OPENMSX_ARGS`: optional extension arguments. On the validated
   turboR machine, OPL4/DalSoRi R2 and Neotron need the slot expander:
-  `(-ext slotexpander -ext ram4mb -ext Jun_Soft_DalSoRi_R2)` or
-  `(-ext slotexpander -ext ram4mb -ext NEOTRON)`.  Makoto YM2608 fits directly:
-  `(-ext ram4mb -ext MAKOTO)`.
+  `(-ext slotexpander -ext Jun_Soft_DalSoRi_R2)` or
+  `(-ext slotexpander -ext NEOTRON)`. Makoto YM2608 fits directly:
+  `(-ext MAKOTO)`. Use openMSXTK for these custom extensions. The reference
+  machine already has 1.5MB mapper RAM; `ram4mb` is not required.
 - `MSX_TEST_DISK_IMAGE`: persistent SD/disk image to receive the test COM.
 - `MSX_TEST_INSTALL_DESTINATION`: MSX-DOS path for the test program.
 - `MSX_TEST_COMMAND`: command to type after boot, including the target VGM/VGZ.
@@ -45,3 +46,9 @@ Copy `smoke.tcl` to a project-specific Tcl file and add `debug set_bp` or
 trace handling in `smoke.tcl`; this avoids rebuilding an openMSX harness for
 each bug.  `openmsx.tcl` at the repository root remains available for the
 older symbol/profile workflow.
+
+## Neotron loading benchmark
+
+See [Neotron streaming regression and loading benchmark](neotron-performance.md)
+for the 1.5MB openMSXTK configuration, reproducible cases, PCM/command-buffer
+verification, audio captures and measured loading improvements.

@@ -4,6 +4,25 @@ VGMPlay MSX change log
 For the complete list of changes please refer to the
 [revision history](https://hg.sr.ht/~grauw/vgmplay-msx/log).
 
+[1.4.tk3] — 2026-09-13
+-----------------------
+
+  * Increased the VGZ decoded relay from 256 bytes to 1KB to reduce mapper
+    borrowing/restoring overhead. The input buffer is now 2KB; their combined
+    3KB allocation is unchanged and no additional mapper RAM is required.
+  * Reuse decoded bytes already in the first relay when VGM command data
+    starts inside the 256-byte header read. Preserve prefetched command data
+    and handle partial inflate slices across relay page boundaries.
+  * Avoid redundant slot selection when the VGZ scratch window and the
+    restored page belong to the same mapper. Cross-slot switching is retained.
+  * Added a short-copy path for 1–11-byte command writes that fit in the
+    current mapper page; page-crossing writes retain the general copy path.
+  * Fixed Neotron PCM blocks with a final fragment shorter than 256 bytes:
+    read only the remaining payload and zero-pad the SIOS transfer buffer,
+    rather than consuming subsequent VGM commands as PCM data.
+  * Corrected the PCM progress threshold carry test so progress marks are
+    emitted for completed 4KB intervals.
+
 [1.4.tk1] — 2026-08-25
 -----------------------
 
@@ -99,6 +118,7 @@ when the selected MSX sound cartridge provides suitable sample memory.
 Initial release.
 
 
+[1.4.tk3]: https://github.com/ToughkidDev/MSXVGMPLAY-TOUGHKIDDEV/releases/tag/v1.4.tk3
 [1.4.tk1]: https://github.com/ToughkidDev/MSXVGMPLAY-TOUGHKIDDEV/releases/tag/v1.4.tk1
 [1.4]: https://hg.sr.ht/~grauw/vgmplay-msx/log?rev=release-1.4
 [1.3]: https://hg.sr.ht/~grauw/vgmplay-msx/log?rev=release-1.3

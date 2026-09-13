@@ -12,7 +12,7 @@ GZIP_CRC32: equ 0
 HEAP: equ 0C000H
 HEAP_SIZE: equ 1180H
 STACK_SIZE: equ 100H
-READBUFFER_SIZE: equ 0B00H
+READBUFFER_SIZE: equ 0800H
 
 	org 100H
 
@@ -112,9 +112,9 @@ READBUFFER: ds READBUFFER_SIZE
 	SECTION RAM_PAGE0
 
 	ALIGN 100H
-; Alignment slack, the DOS/gzip input buffer, and the 256-byte relay used by
+; Alignment slack, the DOS/gzip input buffer, and the decompressed relay used by
 ; GzipStreamReader while its 32K inflate window temporarily owns pages 1+2.
-RAM_PAGE0_ALIGNED: ds 200H + READBUFFER_SIZE
+RAM_PAGE0_ALIGNED: ds 100H + GzipStreamReader_RELAY_SIZE + READBUFFER_SIZE
 
 	ENDS
 

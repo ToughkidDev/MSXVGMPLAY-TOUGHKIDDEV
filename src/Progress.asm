@@ -84,7 +84,7 @@ Progress_Update: PROC
 Loop:
 	ld de,-Progress_THRESHOLD
 	add hl,de
-	jr c,Done
+	jr nc,Done
 	ld a,'.'
 	call System_PrintChar
 	jr Loop

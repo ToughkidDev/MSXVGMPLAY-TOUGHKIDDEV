@@ -52,6 +52,47 @@ CommandWriter_GetSize: PROC
 ; ix = this
 ; Modifies: af, bc, de, hl
 CommandWriter_Append: PROC
+	; Register/wait operands are normally only 1-11 bytes. Avoid the large
+	; copy bookkeeping and FastLDIR setup when they fit in the current page.
+	ld a,b
+	or a
+	jr nz,General
+	ld a,c
+	or a
+	ret z
+	cp 12
+	jr nc,General
+	push hl
+	ld l,(ix + CommandWriter.position + 0)
+	ld h,(ix + CommandWriter.position + 1)
+	add hl,bc
+	ld a,h
+	cp CommandWriter_BUFFER_END >> 8
+	jr c,SmallFits
+	jr nz,SmallOverflow
+	ld a,l
+	or a
+	jr nz,SmallOverflow
+SmallFits:
+	ld e,(ix + CommandWriter.position + 0)
+	ld d,(ix + CommandWriter.position + 1)
+	ld (ix + CommandWriter.position + 0),l
+	ld (ix + CommandWriter.position + 1),h
+	pop hl
+	push bc
+	ldir
+	pop hl
+	ld e,(ix + CommandWriter.buffer + 0)
+	ld d,(ix + CommandWriter.buffer + 1)
+	push ix
+	ld ixl,e
+	ld ixh,d
+	call MappedBuffer_IncreaseSize
+	pop ix
+	ret
+SmallOverflow:
+	pop hl
+General:
 	ld (ix + CommandWriter.remaining + 0),c
 	ld (ix + CommandWriter.remaining + 1),b
 	ld (ix + CommandWriter.source + 0),l
